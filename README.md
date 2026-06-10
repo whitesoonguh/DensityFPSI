@@ -1,11 +1,4 @@
-# DensityFPSI — Fuzzy Private Set Intersection under Density-Bounded Assumptions
-
-Research artifact for the paper *"Fuzzy Private Set Intersection under
-Density-Bounded Assumptions"* (anonymous IEEE S&P 2027 submission).
-
-> **Anonymity notice.** This repository accompanies a double-blind submission.
-> It contains no author, affiliation, or other identifying information. Please
-> keep it that way until the camera-ready / artifact-evaluation stage.
+# Fuzzy Private Set Intersection under Density-Bounded Assumptions
 
 ## Overview
 
@@ -238,16 +231,3 @@ s3i_hs_reveal_s_to_r_bytes    = N * 2 * (2*C) * 8
   tape. The S³I OLE is real PCG compute, but it runs single-process: live PCG
   seed exchange, socket scheduling, serialization, and RTT are out of scope.
 
-## License & citation
-
-License: *to be added at de-anonymization.*
-
-```bibtex
-@inproceedings{densityfpsi,
-  title     = {Fuzzy Private Set Intersection under Density-Bounded Assumptions},
-  author    = {Anonymous},
-  booktitle = {IEEE Symposium on Security and Privacy (S\&P)},
-  year      = {2027},
-  note      = {Under submission}
-}
-```
