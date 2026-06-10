@@ -1,0 +1,14 @@
+# Build artifacts & fetched deps: must be regenerated inside the image.
+# Their CMake caches bake in host absolute paths and break the container build.
+build/
+thirdparty/libOTe/
+thirdparty/out/
+
+# VCS & patch leftovers (also shrinks the 1.3GB build context)
+.git/
+*.orig
+*.rej
+
+# editor/OS junk
+.vscode/
+.DS_Store
