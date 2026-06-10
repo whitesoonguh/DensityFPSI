@@ -518,7 +518,7 @@ int main(int argc, char** argv) {
     comm = compute_comm_accounting(N, C, programmed_pairs, query_slots, query_pairs, okvs_cols, last_s3i);
 
     std::cout << std::fixed << std::setprecision(6);
-    std::cout << "FPSI benchmark (ideal OT/OLE tape)\n";
+    std::cout << "FPSI benchmark (real libOTe OT tape / PCG OLE)\n";
     std::cout << "params: delta=" << delta << " M=" << M << " N=" << N << " d=" << d
               << " C=" << C << " iters=" << iters << "\n";
     std::cout << "correctness: forced_hits=" << forced_hits
