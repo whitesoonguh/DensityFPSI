@@ -25,7 +25,7 @@
   #include "libOTe/TwoChooseOne/Silent/SilentOtExtReceiver.h"
   #include "cryptoTools/Common/Defines.h"
   #include "cryptoTools/Crypto/PRNG.h"
-  #include "coproto/Socket/LocalAsyncSocket.h"
+  #include "coproto/Socket/LocalAsyncSock.h"
 #endif
 
 namespace sooprf {
