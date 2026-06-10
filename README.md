@@ -101,43 +101,54 @@ With `-DSOOPRF_WITH_LIBOTE=ON`, `opprf` additionally links `oc::libOTe`.
 
 ## Requirements
 
-- **CPU:** modern x86-64 with `AVX512F/BW/VL/DQ`, `VAES`, `VPCLMULQDQ`,
-  `AES-NI`, `PCLMUL`. The default configure **fails** if these flags are
-  unavailable.
 - **Toolchain:** CMake ≥ 3.20, Ninja, and a C11 / C++20 compiler (GCC or Clang).
+- **CPU:** x86-64. Pick the build profile that matches your CPU (see *Build*):
+  - **`release`** — the paper's reference profile. Requires `AVX512F/BW/VL/DQ`,
+    `VAES`, `VPCLMULQDQ`, `AES-NI`, `PCLMUL` (Intel Ice Lake / Sapphire Rapids,
+    AMD Zen4). All reported numbers use this profile.
+  - **`release-no-avx512`** — for CPUs **without** AVX-512 that still have
+    `VAES` + `VPCLMULQDQ` + `AVX2` (e.g. AMD Zen3 / EPYC Milan). Builds and runs
+    correctly; numbers are **not directly comparable** to the AVX-512 reference.
 - **Real OT backend only** (`-DSOOPRF_WITH_LIBOTE=ON`): additionally `python3`,
-  `nasm`, `libtool`, `libssl-dev`, `libgmp-dev`, `pkg-config`, `wget` to build
-  libOTe and its dependencies (cryptoTools, coproto, sodium, boost).
+  `nasm`, `libtool`, `autoconf`, `automake`, `pkg-config`, `libssl-dev`,
+  `libgmp-dev`, `wget` to build libOTe and its dependencies (cryptoTools,
+  coproto, sodium, boost). `autoconf`/`automake` are required by libsodium's
+  `autogen.sh`.
 
-A portable fallback exists for debugging only — its numbers are **not**
-comparable to the reference AVX-512 profile.
+> **SIGILL pitfall.** The configure-time SIMD check only verifies that the
+> *compiler* accepts the flags, **not** that the *CPU* can execute them. Building
+> `release` on (or for) a CPU that lacks AVX-512 will compile fine but crash at
+> runtime with `Illegal instruction (core dumped)`. On such CPUs use
+> `release-no-avx512`.
 
 ## Build
 
-### Default (PRG ideal OT tape)
+A build is two orthogonal choices: a **CPU profile** (preset) and, optionally,
+the **real OT backend**.
+
+### 1. Pick a CPU profile
 
 ```bash
+# AVX-512 reference profile (paper numbers); binaries land in build/
 cmake --preset release
 cmake --build --preset release -j
 ctest --preset release --output-on-failure
+
+# No-AVX-512 profile (VAES/VPCLMUL/AVX2 via -march=native); binaries in build-no-avx512/
+cmake --preset release-no-avx512
+cmake --build --preset release-no-avx512 -j
+ctest --preset release-no-avx512 --output-on-failure
 ```
 
-Equivalent manual invocation:
+Manual invocation (e.g. to set the output dir yourself):
 
 ```bash
-cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release \
+  -DFPSI_ENABLE_AVX512=OFF -DFPSI_REQUIRE_AVX512_VAES_VPCLMUL=OFF   # drop both -D for AVX-512
 cmake --build build -j
-ctest --test-dir build --output-on-failure
 ```
 
-Debug-only portable build (no AVX-512, **not** for benchmarking):
-
-```bash
-cmake --preset release-portable
-cmake --build --preset release-portable -j
-```
-
-### Real OT backend (libOTe silent OT)
+### 2. (Optional) real OT backend (libOTe silent OT)
 
 libOTe is fetched and built as a local third-party dependency under
 `thirdparty/out/install`, then consumed via `find_package(libOTe)`. The build
@@ -148,9 +159,11 @@ builds against, so `MultType::Tungsten` + silent OT/VOLE are guaranteed present.
 # one-time: fetch + build libOTe into thirdparty/out/install
 bash thirdparty/build_deps.sh
 
-# configure + build against the real silent-OT backend
-cmake --preset release -DSOOPRF_WITH_LIBOTE=ON
-cmake --build --preset release -j
+# add -DSOOPRF_WITH_LIBOTE=ON to either profile, e.g.:
+cmake --preset release -DSOOPRF_WITH_LIBOTE=ON           # AVX-512 reference
+# or
+cmake --preset release-no-avx512 -DSOOPRF_WITH_LIBOTE=ON # no AVX-512
+cmake --build --preset release -j                        # (match the preset you configured)
 ```
 
 With the flag set, `bench_fpsi`'s offline OT-tape timer reflects the real
@@ -161,20 +174,23 @@ these fall back to the PRG tape (`ot_tape_silent_gen_seconds = 0`).
 
 ### Docker (reproducible real-OT build)
 
+The image builds the real-OT configuration end to end. AVX-512 is **off by
+default** so the image runs on any AVX2 + VAES + VPCLMUL host; enable it with a
+build arg when both the build and run CPUs support AVX-512.
+
 ```bash
-docker build -t densityfpsi .
-docker run --rm densityfpsi          # runs the default bench_fpsi invocation
-# or override the command:
+docker build -t densityfpsi .                              # no-AVX-512 (default)
+docker build --build-arg ENABLE_AVX512=ON -t densityfpsi . # AVX-512 reference profile
+
+docker run --rm densityfpsi          # default bench_fpsi invocation
 docker run --rm densityfpsi ./build/fpsi/bench_fpsi 30 65536 65536 16 4 1 --verbose
 ```
 
-The image runs `thirdparty/build_deps.sh` and configures with
-`-DSOOPRF_WITH_LIBOTE=ON`, so it builds the real-OT configuration end to end.
-
 ## Reproducing the paper
 
-All binaries land in `build/<module>/`. Reference experiments in the paper used
-a single-threaded Intel Xeon Gold 6448H; `bench_fpsi` reports 40-bit statistical
+All binaries land in `build/<module>/` (or `build-no-avx512/<module>/`).
+Reference experiments in the paper used a single-threaded Intel Xeon Gold 6448H
+with the **`release` (AVX-512)** profile; `bench_fpsi` reports 40-bit statistical
 security over `GF(2^64)`.
 
 | Paper result | Command |
@@ -296,6 +312,10 @@ s3i_hs_reveal_s_to_r_bytes    = N * 2 * (2*C) * 8
   the *online* OT transcript (the derandomization round) is still
   formula-accounted, and PCG/OLE likewise runs single-process — live seed
   exchange, socket scheduling, serialization, and RTT are out of scope.
+- The `release-no-avx512` profile bundles the gf64 batch VPCLMUL kernel behind
+  the AVX-512 toggle, so on no-AVX-512 CPUs gf64 falls back to a scalar path.
+  Such builds run correctly but their timings are not comparable to the
+  `release` (AVX-512) reference profile.
 
 ## Responsible LLM Usage
 

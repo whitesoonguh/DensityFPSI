@@ -3,7 +3,7 @@
   "configurePresets": [
     {
       "name": "release",
-      "displayName": "Release AVX512+VAES+VPCLMUL",
+      "displayName": "Release: AVX-512 + VAES + VPCLMUL (paper reference profile)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
@@ -13,10 +13,10 @@
       }
     },
     {
-      "name": "release-portable",
-      "displayName": "Debug-only portable/no AVX512",
+      "name": "release-no-avx512",
+      "displayName": "Release: no AVX-512 (VAES/VPCLMUL + AVX2 via -march=native; e.g. AMD Zen3)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-portable",
+      "binaryDir": "${sourceDir}/build-no-avx512",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "FPSI_ENABLE_NATIVE": "ON",
@@ -27,10 +27,10 @@
   ],
   "buildPresets": [
     { "name": "release", "configurePreset": "release" },
-    { "name": "release-portable", "configurePreset": "release-portable" }
+    { "name": "release-no-avx512", "configurePreset": "release-no-avx512" }
   ],
   "testPresets": [
     { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
-    { "name": "release-portable", "configurePreset": "release-portable", "output": { "outputOnFailure": true } }
+    { "name": "release-no-avx512", "configurePreset": "release-no-avx512", "output": { "outputOnFailure": true } }
   ]
 }
