@@ -55,6 +55,15 @@ endif()
 
 enable_testing()
 
+# Optional real-OT backend: when ON, the AltMod-WPRF correlation tape is
+# generated with libOTe silent OT instead of a PRG. Build libOTe first via
+# `bash thirdparty/build_deps.sh`, which installs it under thirdparty/out/install.
+option(SOOPRF_WITH_LIBOTE "Use real libOTe silent OT for the AltMod OT tape" OFF)
+if(SOOPRF_WITH_LIBOTE)
+  list(PREPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/thirdparty/out/install")
+  message(STATUS "SOOPRF_WITH_LIBOTE=ON; CMAKE_PREFIX_PATH += ${CMAKE_SOURCE_DIR}/thirdparty/out/install")
+endif()
+
 # Dependency direction: gf64 -> pcg, okvs -> opprf.
 add_subdirectory(gf64)
 add_subdirectory(pcg)

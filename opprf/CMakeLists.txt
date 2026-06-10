@@ -10,10 +10,20 @@ option(SOOPRF_BUILD_BENCH "Build local benchmarks" ON)
 add_library(sooprf_altmod STATIC
     src/altmod_prf.cpp
     src/shared_oprf.cpp
+    src/altmod_ot_gen.cpp
 )
 add_library(sooprf::altmod ALIAS sooprf_altmod)
 target_include_directories(sooprf_altmod PUBLIC include)
 target_compile_features(sooprf_altmod PUBLIC cxx_std_20)
+
+# Real-OT backend: link libOTe (installed by thirdparty/build_deps.sh) and
+# enable the SOOPRF_WITH_LIBOTE code path in altmod_ot_gen.cpp.
+if(SOOPRF_WITH_LIBOTE)
+    find_package(cryptoTools REQUIRED)
+    find_package(libOTe REQUIRED)
+    target_link_libraries(sooprf_altmod PUBLIC oc::libOTe oc::cryptoTools)
+    target_compile_definitions(sooprf_altmod PUBLIC SOOPRF_WITH_LIBOTE=1)
+endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(sooprf_altmod PRIVATE -O3 -funroll-loops -Wall -Wextra -Wpedantic)
     if(FPSI_ENABLE_NATIVE)

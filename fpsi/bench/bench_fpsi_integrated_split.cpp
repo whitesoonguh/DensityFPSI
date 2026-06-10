@@ -1,6 +1,7 @@
 #include "fpsi/fpsi.h"
 #include "sooprf/prng.h"
 #include "sooprf/shared_oprf.h"
+#include "sooprf/altmod_ot_gen.h"
 
 #include <algorithm>
 #include <chrono>
@@ -383,6 +384,7 @@ int main(int argc, char** argv) {
     std::size_t query_slots = 0;
     std::size_t query_pairs = 0;
     CommAccounting comm{};
+    sooprf::SilentTapeCost ot_cost{};
 
     for (std::size_t it = 0; it < iters; ++it) {
         fpsi::OssiParams p = params;
@@ -428,9 +430,13 @@ int main(int argc, char** argv) {
         (void)enc1;
 
         const auto ot0 = clock_type::now();
-        auto tape = sooprf::AltModWPrfCorrelationTape::make_ideal(
+        // Real libOTe silent-OT correlation tape when built with
+        // -DSOOPRF_WITH_LIBOTE=ON; PRG fallback otherwise. The ot0/ot1 window
+        // now measures the real silent-OT generation time.
+        auto tape = sooprf::make_silent_ot(
             query_pair_keys.size(),
-            p.sooprf_tape_seed ^ static_cast<std::uint64_t>(query_pair_keys.size()));
+            p.sooprf_tape_seed ^ static_cast<std::uint64_t>(query_pair_keys.size()),
+            &ot_cost);
         const auto ot1 = clock_type::now();
 
         sooprf::SharedAltModOprf soprf{sooprf::AltModPrf(prf_key)};
@@ -605,6 +611,10 @@ int main(int argc, char** argv) {
                   << " key_mult_lanes=" << comm.sooprf_key_mult_lanes
                   << " f4_blocks=" << comm.sooprf_f4_blocks
                   << " f4_lanes=" << comm.sooprf_f4_lanes << "\n";
+        std::cout << "  ot_tape_silent_gen_seconds=" << ot_cost.silent_gen_seconds
+                  << " ot_tape_f4_correlations=" << ot_cost.f4_correlations
+                  << " ot_tape_key_correlations=" << ot_cost.key_correlations
+                  << " ot_tape_silent_ot_instances=" << ot_cost.silent_ot_instances << "\n";
         std::cout << "  s3i_scalar_ole_correlations=" << comm.s3i_scalar_ole_correlations
                   << " s3i_pcg_expanded_ole_correlations=" << comm.s3i_pcg_expanded_ole_correlations
                   << " pcg_expected_correlations=" << fpsi::s3i_required_ole_correlations(N, d, C)
