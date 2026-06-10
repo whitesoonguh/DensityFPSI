@@ -43,6 +43,17 @@ python3 build.py \
     -DENABLE_SOFTSPOKEN_OT=ON \
     -DSODIUM_MONTGOMERY=false
 
+# build.py can return 0 even when the underlying cmake build failed; verify the
+# install actually produced the package configs we depend on, and stop loudly
+# (so a Docker build fails here, not later at find_package).
+if ! find "$PREFIX" -name 'libOTeConfig.cmake' | grep -q . \
+   || ! find "$PREFIX" -name 'cryptoToolsConfig.cmake' | grep -q .; then
+    echo "ERROR: libOTe install incomplete under $PREFIX" >&2
+    echo "       (libOTeConfig.cmake / cryptoToolsConfig.cmake not found)." >&2
+    echo "       Check the libOTe build log above for the real failure." >&2
+    exit 1
+fi
+
 echo
 echo "libOTe installed to: $PREFIX"
 echo "Now configure with:  cmake --preset release -DSOOPRF_WITH_LIBOTE=ON"

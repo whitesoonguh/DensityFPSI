@@ -4,7 +4,7 @@ WORKDIR /home
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates build-essential cmake ninja-build git libtool \
-    pkg-config python3 nasm libssl-dev libgmp-dev wget \
+    autoconf automake pkg-config python3 nasm libssl-dev libgmp-dev wget \
     && update-ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY . /home/DensityFPSI
