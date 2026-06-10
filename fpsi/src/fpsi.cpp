@@ -59,10 +59,10 @@ static std::size_t s3i_required_ole_correlations_impl(std::size_t N, std::size_t
     const std::size_t subset = d * s3i_subset_tree_ole_correlations_per_set(C);
 
     // Two random linear combinations over a 2C-point evaluation domain, per axis.
-    // The scalar fallback uses the generic SSrOLE routine and therefore consumes
-    // two scalar OLEs per evaluation point.  The AVX512 batch-4 path has a
-    // sender-private gamma specialization and consumes one scalar OLE per lane/point.
-    const std::size_t rlc_scalar = 2 * d * (2 * (2 * C));
+    // gamma is S-owned (R-share = 0), so gamma * g_j needs only one cross OLE per
+    // evaluation point.  Both the scalar fallback and the AVX512 batch-4 path use
+    // the S-private accumulator and therefore consume one scalar OLE per point.
+    const std::size_t rlc_scalar = 2 * d * (2 * C);
 #if defined(FPSI_HAVE_GF64X4) && defined(FPSI_USE_GF64X4_GCD)
     const std::size_t rlc_x4 = 2 * d * (2 * C);
     const std::size_t full4 = N / 4;
@@ -979,6 +979,45 @@ static std::vector<Poly> sample_gamma(std::size_t d, std::size_t C, sooprf::Spli
     return gamma;
 }
 
+// Scalar analogue of pcg_mul_s_private_accum_x4.  gamma is S-owned (its R-share is
+// identically zero), so the product gamma * g_j reconstructs as
+//   gamma * g_j^S   (both S-owned -> local, no OLE)
+// + gamma * g_j^R   (S x R       -> exactly one cross OLE).
+// The generic pcg_ssrole_mul_eval_only would burn a second OLE on the (0 * g_j^S)
+// cross term; this routine skips it, matching the batch-4 path's 1-OLE/point cost.
+static void pcg_mul_s_private_accum(const std::vector<std::uint64_t>& a_r_eval,
+                                    const std::vector<std::uint64_t>& a_s_eval,
+                                    const std::vector<std::uint64_t>& gamma_eval,
+                                    PcgOlePool& ole,
+                                    std::vector<std::uint64_t>& h_r_eval,
+                                    std::vector<std::uint64_t>& h_s_eval,
+                                    OssiStats* stats) {
+    const std::size_t L = gamma_eval.size();
+    if (a_r_eval.size() != L || a_s_eval.size() != L || h_r_eval.size() != L || h_s_eval.size() != L) {
+        throw std::runtime_error("scalar S-owned multiplication accumulator dimension mismatch");
+    }
+    const auto prof_t0 = std::chrono::steady_clock::now();
+    const double pcg_before = stats ? stats->pcg_offline_seconds : 0.0;
+    ole.ensure(L); // one cross-product per evaluation point.
+    for (std::size_t t = 0; t < L; ++t) {
+        const std::uint64_t ar = a_r_eval[t];
+        const std::uint64_t as = a_s_eval[t];
+        const std::uint64_t gam = gamma_eval[t];
+        const std::uint64_t local_s = gf64_mul(as, gam);
+        std::uint64_t cr = 0, cs = 0;
+        pcg_cross_product_share(ar, gam, ole.next(), cr, cs);
+        h_r_eval[t] ^= cr;
+        h_s_eval[t] ^= local_s ^ cs;
+    }
+    if (stats) {
+        stats->ssrole_polymul_calls++;
+        stats->scalar_ole_equivalent += L;
+        stats->pcg_ole_correlations += L;
+        const double pcg_delta = stats->pcg_offline_seconds - pcg_before;
+        stats->prof_ssrole_online_seconds += prof_elapsed(prof_t0) - pcg_delta;
+    }
+}
+
 static Poly build_random_linear_combination_fused(const std::vector<SharedEvalPoly>& g_eval,
                                                   const std::vector<Poly>& gamma,
                                                   std::size_t C,
@@ -997,13 +1036,12 @@ static Poly build_random_linear_combination_fused(const std::vector<SharedEvalPo
         vandermonde_eval_poly(gamma_eval, gamma[j], L);
         if (stats) stats->prof_vand_gamma_eval_seconds += prof_elapsed(prof_gamma_t0);
 
-        // gamma is S-owned: multiply shared g_j by shared gamma=(0,gamma_j).
-        SharedEvalPoly prod = pcg_ssrole_mul_eval_only(g_eval[j].r_eval, g_eval[j].s_eval,
-                                                       {}, gamma_eval, ole, stats);
+        // gamma is S-owned (R-share = 0): one cross OLE per point suffices.
+        pcg_mul_s_private_accum(g_eval[j].r_eval, g_eval[j].s_eval, gamma_eval,
+                                ole, h_r_eval, h_s_eval, stats);
         for (std::size_t t = 0; t < L; ++t) {
-            h_r_eval[t] ^= prod.r_eval[t];
-            // Add gamma_j(alpha_t) * alpha_t^C for the monic X^C term of f_j.
-            h_s_eval[t] ^= prod.s_eval[t] ^ gf64_mul(gamma_eval[t], dom.eval_mat[t * L + C]);
+            // Add gamma_j(alpha_t) * alpha_t^C for the monic X^C term of f_j (S-local).
+            h_s_eval[t] ^= gf64_mul(gamma_eval[t], dom.eval_mat[t * L + C]);
         }
     }
 
