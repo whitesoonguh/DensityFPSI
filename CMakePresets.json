@@ -1,0 +1,36 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "release",
+      "displayName": "Release AVX512+VAES+VPCLMUL",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "FPSI_ENABLE_NATIVE": "ON",
+        "FPSI_ENABLE_AVX512": "ON"
+      }
+    },
+    {
+      "name": "release-portable",
+      "displayName": "Debug-only portable/no AVX512",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-portable",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "FPSI_ENABLE_NATIVE": "ON",
+        "FPSI_ENABLE_AVX512": "OFF",
+        "FPSI_REQUIRE_AVX512_VAES_VPCLMUL": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "release", "configurePreset": "release" },
+    { "name": "release-portable", "configurePreset": "release-portable" }
+  ],
+  "testPresets": [
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
+    { "name": "release-portable", "configurePreset": "release-portable", "output": { "outputOnFailure": true } }
+  ]
+}

@@ -1,0 +1,43 @@
+include(CheckCXXCompilerFlag)
+
+add_library(fpsi STATIC src/fpsi.cpp src/fpsi_membership.cpp)
+add_library(fpsi::fpsi ALIAS fpsi)
+target_include_directories(fpsi PUBLIC include)
+target_compile_features(fpsi PUBLIC cxx_std_20)
+target_link_libraries(fpsi PUBLIC opprf::opprf gf64::gf64 pcg::dmpf64)
+if(TARGET gf64::gf64x4)
+  target_link_libraries(fpsi PUBLIC gf64::gf64x4)
+  target_compile_definitions(fpsi PRIVATE FPSI_HAVE_GF64X4=1 FPSI_USE_GF64X4_GCD=1)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(fpsi PRIVATE -O3 -Wall -Wextra -Wpedantic -mpclmul -msse4.1)
+  if(FPSI_ENABLE_NATIVE)
+    target_compile_options(fpsi PRIVATE -march=native)
+  endif()
+  if(FPSI_ENABLE_AVX512)
+    target_compile_options(fpsi PRIVATE -mavx512f -mavx512bw -mavx512vl -mvaes -mvpclmulqdq)
+    target_compile_definitions(fpsi PUBLIC FPSI_COMPILED_AVX512=1)
+  else()
+    target_compile_options(fpsi PRIVATE -mno-avx512f -mno-avx512bw -mno-avx512vl -mno-vaes -mno-vpclmulqdq)
+  endif()
+endif()
+
+add_executable(test_fpsi_s3i test/test_s3i.cpp)
+target_link_libraries(test_fpsi_s3i PRIVATE fpsi::fpsi)
+add_test(NAME fpsi_s3i COMMAND test_fpsi_s3i)
+
+add_executable(test_fpsi_ossi test/test_ossi.cpp)
+target_link_libraries(test_fpsi_ossi PRIVATE fpsi::fpsi)
+add_test(NAME fpsi_ossi COMMAND test_fpsi_ossi)
+
+add_executable(test_fpsi_ossi_batch test/test_ossi_batch.cpp)
+target_link_libraries(test_fpsi_ossi_batch PRIVATE fpsi::fpsi)
+add_test(NAME fpsi_ossi_batch COMMAND test_fpsi_ossi_batch)
+
+add_executable(test_fpsi_membership test/test_membership.cpp)
+target_link_libraries(test_fpsi_membership PRIVATE fpsi::fpsi)
+add_test(NAME fpsi_membership COMMAND test_fpsi_membership)
+
+add_executable(bench_fpsi bench/bench_fpsi_integrated_split.cpp)
+target_link_libraries(bench_fpsi PRIVATE fpsi::fpsi)
