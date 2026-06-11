@@ -305,13 +305,13 @@ s3i_hs_reveal_s_to_r_bytes    = N * 2 * (2*C) * 8
   64-bit scale unless amplified.
 - The benchmark uses the **weak** `F'_OSSI` nonempty predicate by default, not
   full intersection element recovery.
-- Final item-retrieval OT is not included.
+- Final item-retrieval OT is not included, but we account for the required communication cost for this in the paper.
 - The so-OPPRF OT correlations (AltMod-WPRF F4 mod-2 OT) are a PRG ideal local
   tape by default. Building with `-DSOOPRF_WITH_LIBOTE=ON` generates them with
   real libOTe silent OT, so offline OT-correlation generation is real and timed;
   the *online* OT transcript (the derandomization round) is still
   formula-accounted, and PCG/OLE likewise runs single-process — live seed
-  exchange, socket scheduling, serialization, and RTT are out of scope.
+  exchange, socket scheduling, serialization, and RTT are out of scope. In this paper, we account for the communication latency through estimation; i.e., dividing the total communication cost by the network bandwith and addressing the RTT latency via counting communication rounds.
 - The `release-no-avx512` profile bundles the gf64 batch VPCLMUL kernel behind
   the AVX-512 toggle, so on no-AVX-512 CPUs gf64 falls back to a scalar path.
   Such builds run correctly but their timings are not comparable to the
@@ -320,4 +320,4 @@ s3i_hs_reveal_s_to_r_bytes    = N * 2 * (2*C) * 8
 ## Responsible LLM Usage
 
 We disclose that the authors used ChatGPT 5.5 and Claude Opus 4.8 to clean/tidy-up the codebase. 
-We attest that all the intellectual contributions---$C$-max collision property, membership tag-based abstraction, protocol design and instantiation, and proofs---originate from the authors, and all source codes produced by LLMs are audited by the authors.
+We attest that all the intellectual contributions---`C`-max collision property, membership tag-based abstraction, protocol design and instantiation, and proofs---originate from the authors, and all source codes produced by LLMs are audited by the authors.
