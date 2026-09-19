@@ -13,8 +13,8 @@ multiplicity of collisions *per axis* is bounded by `C`. Under this assumption
 we build the first FPSI protocol for the ℓ∞ metric that:
 
 - handles **low- and high-dimensional regimes simultaneously**,
-- scales **linearly** in both set sizes and the dimension `d` (for fixed `C`),
-- uses **only symmetric-key primitives** (no public-key crypto).
+- scales **linearly** in both set sizes and the dimension `d` (under the `C`-max collision assumption),
+- based on **symmetric-key primitives**
 
 The construction reduces fuzzy matching to an **oblivious selected set
 intersection (OSSI)** over per-axis membership tags, instantiated from a
